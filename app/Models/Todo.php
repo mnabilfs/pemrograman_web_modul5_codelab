@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Todo extends Model
 {
     use SoftDeletes;
-    
+
     protected $fillable = [
         'title',
         'description',
@@ -16,6 +16,7 @@ class Todo extends Model
         'due_date',
         'priority',
         'category',
+        'file_path',
     ];
     protected $casts = [
         'due_date' => 'date',

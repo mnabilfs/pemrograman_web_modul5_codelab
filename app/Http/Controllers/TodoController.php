@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Todo;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class TodoController extends Controller
 {
@@ -14,17 +15,17 @@ class TodoController extends Controller
     {
         $q = Todo::query();
 
-        if($s = $req->query('search')) {
+        if ($s = $req->query('search')) {
             $q->where(fn($qq) => $qq->where('title', 'like', "%$s%")
                 ->orWhere('description', 'like', "%$s%"));
         }
-        if($status = $req->query('status')) $q->where('status', $status);
-        if($cat = $req->query('category')) $q->where('category', $cat);
-        if($prio = $req->query('priority')) $q->where('priority', $prio);
+        if ($status = $req->query('status')) $q->where('status', $status);
+        if ($cat = $req->query('category')) $q->where('category', $cat);
+        if ($prio = $req->query('priority')) $q->where('priority', $prio);
 
         $q->latest('created_at');
 
-        $todos = $q->paginate($req->integer('limit',10));
+        $todos = $q->paginate($req->integer('limit', 10));
         return response()->json($todos);
     }
 
@@ -40,7 +41,16 @@ class TodoController extends Controller
             'due_date' => 'nullable|date',
             'priority' => 'nullable|integer|min:1|max:3',
             'category' => 'nullable|in:personal,work,study,others',
+            'file' => 'nullable|file|max:5120',
         ]);
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('todos', $fileName, 'public');
+            $data['file_path'] = $filePath;
+        }
+
         $todo = Todo::create($data);
         return response()->json($todo, 201);
     }
@@ -65,7 +75,22 @@ class TodoController extends Controller
             'due_date' => 'sometimes|nullable|date',
             'priority' => 'sometimes|integer|min:1|max:3',
             'category' => 'sometimes|in:personal,work,study,others',
+            'file' => 'nullable|file|max:5120',
         ]);
+
+        if ($request->hasFile('file')) {
+
+            // Delete old file if exists
+            if ($todo->file_path && Storage::disk('public')->exists($todo->file_path)) {
+                Storage::disk('public')->delete($todo->file_path);
+            }
+
+            $file = $request->file('file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('todos', $fileName, 'public');
+            $data['file_path'] = $filePath;
+        }
+
         $todo->update($data);
         return response()->json($todo);
     }
@@ -76,7 +101,7 @@ class TodoController extends Controller
     public function destroy(Todo $todo)
     {
         $todo->delete();
-        
+
         return response()->json([
             'message' => 'Todo berhasil dihapus.',
             'id' => $todo->id,
